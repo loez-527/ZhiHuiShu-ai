@@ -7,7 +7,7 @@ import sys
 import threading
 from io import StringIO
 from subprocess import Popen, PIPE
-from main import main  # 请将main_program替换为你的主程序文件名
+from ai import main  # 请将main_program替换为你的主程序文件名
 
 
 class RedirectText:
@@ -67,6 +67,8 @@ class Application(tk.Tk):
         sys.stdin = self.console
         sys.stdout = RedirectText(self.console_output)
         sys.stderr = RedirectText(self.console_output)
+
+
 
     def create_widgets(self):
         # 配置区域
@@ -137,7 +139,7 @@ class Application(tk.Tk):
     def load_config(self):
         config = configparser.ConfigParser()
         if os.path.exists("config.ini"):
-            config.read("config.ini")
+            config.read("config.ini",encoding="utf-8")
             self.username.insert(0, config.get("Credentials", "username", fallback=""))
             self.password.insert(0, config.get("Credentials", "password", fallback=""))
             self.browser_path.insert(0, config.get("Browser", "chrome_path", fallback=""))
@@ -155,7 +157,7 @@ class Application(tk.Tk):
         config["Course"] = {
             "url": self.course_url.get()
         }
-        with open("config.ini", "w") as f:
+        with open("config.ini", "w", encoding="utf-8") as f:
             config.write(f)
         print("配置已保存！")
 
@@ -176,5 +178,9 @@ class Application(tk.Tk):
 
 
 if __name__ == "__main__":
+
+
     app = Application()
+    print("欢迎使用本项目૮(˶ᵔ ᵕ ᵔ˶)ა\n本项目完全免费！如果觉得不错就打赏一下吧૮(˶ᵔ ᵕ ᵔ˶)ა\n使用前请先查看README文档\n遇到问题请打包好两个日志文件发送至下方邮箱⬇️\nloez-527@outlook.com 或 3466017194@qq.com\n")
+    print('-' * 40)
     app.mainloop()
