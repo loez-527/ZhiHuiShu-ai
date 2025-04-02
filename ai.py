@@ -106,14 +106,12 @@ QUESTION_BANK = Path("question_bank.json")
 
 def login(tab,conf):
     """无限重试的极简登录函数"""
-
-
     while True:
         # 输入账号密码
         username = conf['username']
         password = conf['password']
 
-
+        tab.wait(1)
         tab.ele('xpath://*[@id="lUsername"]').clear()
         tab.ele('xpath://*[@id="lUsername"]').input(username)
         tab.ele('xpath://*[@id="lPassword"]').clear()
@@ -122,7 +120,7 @@ def login(tab,conf):
         # 点击登录
         tab.ele('xpath://*[@id="f_sign_up"]/div[1]/span').click()
 
-        print("登录中......\n请进行滑块验证后再继续...")
+        print("登录中......\n请进行滑块验证进入到课程界面后再继续...")
         wait()
 
         # 验证登录是否成功
@@ -133,7 +131,7 @@ def login(tab,conf):
         print("登录失败，3秒后重试...")
         tab.wait(3)
 
-
+# 读取配置文件
 def load_config():
     """读取配置文件"""
     config = ConfigParser()
@@ -151,7 +149,40 @@ def load_config():
         'course_url': config.get('Course', 'url')
     }
 
+# 将数字与章节对应,保存到新列表中
+def task_num_list(sorted_data):
+    # 获取用户输入内容
+    while True:
+        try:
+            task_num = sys.stdin.readline().strip()
 
+            # 将阿拉伯数字转换为中文数字
+            task_num = task_num.replace('1', '一').replace('2', '二').replace('3', '三').replace('4', '四').replace('5', '五').replace(
+                '6', '六').replace('7', '七').replace('8', '八').replace('9', '九').replace('10', '十').replace('11', '十一').replace(
+                '12', '十二').replace('13', '十三').replace('14', '十四').replace('15', '十五')
+            task_num = task_num.split(',')  # 将输入的字符串按逗号分割成列表
+            # print(f'{task_num}')
+
+            # 将数字与章节对应,保存到新列表中
+            new_list = []
+            for i in task_num:
+                for j in sorted_data:
+                    if i in j['章节'][0:2]:
+                        new_list.append(j['章节'])
+            print(f'是否确认选择章节：{new_list}')
+            print('是否确认选择章节：y/n (输入法切换到英文输入)')
+            a = sys.stdin.readline().strip()
+            if a == "y":
+                return new_list
+            elif a == "n":
+                print("重新输入...")
+                continue  # 明确继续循环
+            else:
+                print("请输入 y 或 n")
+                continue
+        except Exception as e:
+            print(f"输入无效: {e}. 请重新输入")
+            continue
 
 # 等待用户操作完成
 def wait():
@@ -183,36 +214,18 @@ def wait_with_progress(seconds):
 
 # 处理任务数据（过滤过期+智能排序）
 def process_tasks(raw_data):
-    """简化过滤排序（排除过期+进度100%）"""
+    """简化过滤排序（排除过期）"""
     from datetime import datetime
-    import re
+
 
     now = datetime.now().timestamp()
 
     filtered_data = [
-        item for item in raw_data
-        # 过滤条件：未过期 且 进度未完成
-        if (
-            datetime.strptime(
-                item['任务期限'].split(' - ')[1].strip(),
-                "%Y-%m-%d %H:%M:%S"
-            ).timestamp() > now
-            and item['学习进度'].strip() != '100%'  # 清理空格后判断
-        )
+        item for item in raw_data  if (datetime.strptime(item['任务期限'].split(' - ')[1].strip(), "%Y-%m-%d %H:%M:%S").timestamp() > now  )
     ]
 
-    return sorted(
-        filtered_data,
-        key=lambda x: (
-            # 原排序逻辑保持不变
-            datetime.strptime(
-                x['任务期限'].split(' - ')[1].strip(),
-                "%Y-%m-%d %H:%M:%S"
-            ).timestamp(),
-            0 if x['学习状态'] == '学习中' else 1,
-            int(re.findall(r'\d+', x['章节'])[0]) if re.findall(r'\d+', x['章节']) else 999
-        )
-    )
+    return filtered_data
+
 
 
 # 小节学习状态
@@ -220,6 +233,7 @@ def parse_knowledge_points(tab):
     points = []
 
     # 获取所有知识点容器
+    tab.wait.eles_loaded('xpath://div[@class="collapse-item"]/div[@class="text"]')
     items = tab.eles('xpath://div[@class="collapse-item"]/div[@class="text"]')
 
     for item in items:
@@ -279,6 +293,7 @@ def parse_knowledge_points(tab):
 
 # 小节学习功能
 def study_knowledge_points(tab, browser):
+    tab.wait.eles_loaded('xpath://div[@class="resources-section"][1]//div[@class="resources-item"]')
     items = tab.eles('xpath://div[@class="resources-section"][1]//div[@class="resources-item"]')  # 定位到必学资源
     # print(items)
     for item in items:
@@ -395,7 +410,7 @@ def extract_question(tab):
     try:
         # 进入解析页面
         tab.ele('x://span[text()="查看作答记录与解析"]').click(by_js=True)
-        tab.wait.load_start(timeout=3,raise_err=False)
+        tab.wait.load_start(timeout=10,raise_err=False)
 
         items = tab.eles('x://div[@class="exam-item relative"]') # 获取题目列表对象
         for item in items:
@@ -449,6 +464,13 @@ def extract_question(tab):
         print("题目提取失败：", str(e))
         return None
 
+def normalize_text(text):
+    # 统一括号、去除空格、忽略大小写和符号差异
+    text = text.replace(' ', '').replace('\n', '').replace('\u3000', '')
+    text = text.replace('（', '(').replace('）', ')')  # 统一括号
+    text = text.replace('—', '-')  # 统一横线
+    return text.strip()
+
 
 # ======================
 # 完善后的掌握度功能
@@ -458,15 +480,15 @@ def mastery(tab, browser):
     question_bank = load_question_bank()
 
     # 进入答题流程
+    tab.wait.eles_loaded('xpath://div[text()=" 提升掌握度 "]')
     tab.ele('xpath://div[text()=" 提升掌握度 "]').click()
     tab.wait.doc_loaded()
 
     while True:
         try:
-
-
             # 如果题库中没有则默认选第1个选项提交答案（触发显示正确答案）
             if tab.ele('xpath://span[text()="提交作业"]', timeout=2):
+                print('开始答题')
 
                 # 按照题目数量循环答题
                 content = len(tab.eles('xpath://div[@class="el-tree-node__content" and @style="padding-left: 18px;"]'))
@@ -480,36 +502,38 @@ def mastery(tab, browser):
                     question_type = tab.ele('x://span[@class="letterSortNum fl"]').text.split()[-1] #题型
 
                     question_text = tab.ele('x://div[@class="centent-pre"]//p').text # 题目
-                    options = [i.text for i in tab.eles('x://label[@class="el-checkbox"]//p//span | //div[@class="preStyle fl stem"]')]# 选项
+                    print(f'题目：{question_text}')
+                    options = [i.text for i in tab.eles('x://label[@class="el-checkbox"]//p | //div[@class="preStyle fl stem"]')]# 选项
 
                     # 去题库搜索答案，如果没有则默认选第一个
                     # ========== 新增题库搜索逻辑 ==========
                     answer_indices = search_in_bank(question_text, options)
                     if answer_indices:
+                        print(f'答案：{answer_indices}')
                         # 点击题库中找到的答案选项
                         for idx in answer_indices:
                             # 通用定位所有可能元素
-                            candidates = tab.eles('x://label[@class="el-checkbox"]//p//span | //div[@class="preStyle fl stem"]//p | //div[@class="preStyle fl stem"]')
+                            candidates = tab.eles('x://label[@class="el-checkbox"]//p | //div[@class="preStyle fl stem"]//p | //div[@class="preStyle fl stem"]')
                             # 过滤匹配项
                             target = next((
                                 el for el in candidates
-                                if idx in el.text.replace(' ', '').replace('\n', '')
+                                if normalize_text(idx) in normalize_text(el.text)
                             ), None)
                             if target:
-                                target.click(by_js=True)
+                                target.click.multi()
+                                tab.wait(1)
 
                     else:
                         print('题库中没有该题，默认选A')
+                        tab.wait.eles_loaded('xpath://li[@class="clearfix"][1] | //label[@class="el-checkbox"][1]')
                         # 随机选择答案（比如都选第一个）确保能触发结果页
-                        tab.ele('xpath://li[@class="clearfix"][1] | //label[@class="el-checkbox"][1]').click(by_js=True)
-
+                        tab.ele('xpath://li[@class="clearfix"][1] | //label[@class="el-checkbox"][1]').click.multi()
+                        tab.wait(1)
 
 
                 tab.ele('xpath://span[text()="提交作业"]').click(by_js=True)
                 # 等待5s
                 browser.wait(5)
-
-
 
             # 在结果页获取掌握度是否达到100%
             if (num := tab.ele('xpath://div[contains(@class, "charts-label-rate")]', timeout=5)):
@@ -532,6 +556,7 @@ def mastery(tab, browser):
 
 
                 else:
+                    tab.wait.eles_loaded('xpath://div[@class="backup-icon"]')
                     tab.ele('xpath://div[@class="backup-icon"]').click(by_js=True) # 从答题结束界面，返回到小节资源学习界面
                     tab.wait(2)
                     break
@@ -555,6 +580,7 @@ def video_study(ocs, item, tab):
 
     # 计算视频时长，展示进度条
     wait_with_progress(sum(x * int(t) for x, t in zip([3600, 60, 1], f"{uiih}".split(':'))))
+    tab.wait(5)
     print("播放完成,即将学习下一个资源")
     tab.wait(10)
 
@@ -566,11 +592,12 @@ def documentation_study(doc, tab, browser, item):
     tab.wait(2)
 
     # 判断是否有新标签页出现，是则关闭
-    if browser.tabs_count > 2:
+    if browser.tabs_count > 1:
+        browser.close_tabs(tabs_or_ids=tab_id, others=True)
         print("已自动关闭新标签，继续学习下一个资源")
-        tab.close(others=True)
     else:
         print("非第三方链接，正在检查是否已完成....")
+        tab.wait(3)
         if item.ele('xpath:.//div[@class="video-wrap"]//div[@class="video-img-bg"]').next(3, ele_only=False):
             print("已完成，即将学习下一个资源")
 
@@ -604,7 +631,7 @@ def click_retry(tab,browser, max_retries=10, check_interval=1):
 
             # 执行点击操作
             print('🖱 点击重新答题按钮')
-            retry_btn.click(by_js=True)  # 拟人化点击
+            retry_btn.click()  # 拟人化点击
 
             # 点击后等待2s检查是否跳转成功
             browser.wait(2)
@@ -644,7 +671,7 @@ def click_retry(tab,browser, max_retries=10, check_interval=1):
         if tab.ele(target_selector, timeout=3):
             print('✅ 人工干预成功')
             return True
-        print('❌ 未检测到目标界面，请确认操作')
+        print('❌ 未检测到目标界面，请刷新页面后继续或重启软件')
 
 
 def get_valid_input(prompt, valid_choices,Tab,max_attempts=3):
@@ -685,8 +712,8 @@ def main(conf):
     try:
         logging.info("程序启动")
 
-        if not os.path.exists('questions.json'):
-            with open('questions.json', 'w') as f:
+        if not os.path.exists('questions_bank.json'):
+            with open('questions_bank.json', 'w') as f:
                 json.dump([], f)
 
         path = conf['chrome_path']  # 请改为你电脑内Chrome可执行文件路径
@@ -701,8 +728,10 @@ def main(conf):
         # 新建标签页,打开网址
         tab = browser.new_tab(
             url=conf['course_url'])
+        global tab_id
+        tab_id = tab.tab_id
 
-
+        browser.close_tabs(tabs_or_ids=tab_id, others=True) #关闭其他标签页
 
         # 检查是否需要登录
         if "login" in tab.url:
@@ -712,15 +741,18 @@ def main(conf):
         print('开始学习')
         print('正在获取学习进度......')
         # 查找并点击我的任务
-        if tab.wait.doc_loaded(timeout=10, raise_err=True):
+        if tab.wait.doc_loaded(timeout=10, raise_err=False):
+            tab.wait.eles_loaded('xpath://span[text()="我的任务"]')
             tab.ele('xpath://span[text()="我的任务"]').click(by_js=True)
             tab.wait(1)
+            tab.wait.eles_loaded('x://span[text()="全部"]')
             tab.ele('x://span[text()="全部"]').click(by_js=True)
-
+        tab.wait.eles_loaded('xpath://div[contains(@class,"knowledge-item")]')
         item = tab.eles('xpath://div[contains(@class,"knowledge-item")]')
 
         # 获取当前任务状态
         data = []
+        tab.wait.eles_loaded('xpath:.//div[@class="task-title"]/text()')
         for i in item:
             knowledge_title = i.ele('xpath:.//div[@class="task-title"]/text()')
             knowledge_status = i.ele('xpath:.//div[@class="status-tag"]/span/text()')
@@ -728,28 +760,37 @@ def main(conf):
             knowledge_time = i.ele('xpath://div[@class="task-time"]/text()')
             data.append({
                 '章节': knowledge_title,
-                '学习状态': knowledge_status,
+                '学习状态': knowledge_status if knowledge_status else '',
                 '学习进度': knowledge_schedule,
                 '任务期限': knowledge_time
             })
 
+
         # 对字典按照截止时间重新排序
-        sorted_data = process_tasks(data)
-        print(f"需要学习的章节：{sorted_data}")
+        sorted_data = data
+
+
+        for i in sorted_data:
+            print(f'章节：{i["章节"]}\t进度：{i["学习进度"]}')
+        print("选择你需要学习的章节(输入阿拉伯数字,如‘1,2’，可以多个(按顺序),用<英文>逗号隔开):")
+
+        # 用户选择要学习的章节->章节列表
+        new_list = task_num_list(sorted_data)
 
         # 　开始按照顺序学习
-        for task in sorted_data:
-            print(f"\n{'=' * 30}\n进入章节：{task['章节']}")
+        for task in new_list:
+            print(f"\n{'=' * 30}\n进入章节：{task}")
 
             # 通过章节标题定位对应元素
-            tab.ele(f'xpath://div[text()="{task["章节"]}" and @class="task-title"]').click(by_js=True)
+            tab.ele(f'xpath://div[text()="{task}" and @class="task-title"]').click(by_js=True)
 
             # 确认进入对应章节
-            task_name = task["章节"][0:3]
+            task_name = task[0:3]
             if task_name not in tab.ele('x://div[@class="task-details-name"]').text:
                 tab.ele('x://div[contains(text(),"第四章") and @class="task-title"]').click(by_js=True)
                 tab.wait(1, 3)
-                tab.ele(f'xpath://div[text()="{task["章节"]}" and @class="task-title"]').click(by_js=True)
+                tab.wait.eles_loaded(f'xpath://div[text()="{task}" and @class="task-title"]')
+                tab.ele(f'xpath://div[text()="{task}" and @class="task-title"]').click(by_js=True)
                 tab.wait(1)
 
             # 等待知识点加载（关键）
@@ -784,13 +825,17 @@ def main(conf):
                 for p_dict in point:
 
                     if not tab.ele('x://div[@class="tab-item active"]//span[text()="全部"]'):
+                        tab.wait.eles_loaded('xpath://span[text()="我的任务"]')
                         tab.ele('xpath://span[text()="我的任务"]').click(by_js=True)
                         tab.wait(1)
                         tab.ele('x://span[text()="全部"]').click(by_js=True)
                         tab.wait(1)
+                        tab.wait.eles_loaded(f'xpath://div[text()="{task}" and @class="task-title"]')
+                        tab.ele(f'xpath://div[text()="{task}" and @class="task-title"]').click(by_js=True)
 
                     p_name = p_dict["名称"]
                     tab.wait(1)  # 延迟1s
+                    tab.wait.eles_loaded(f'xpath://span[contains(normalize-space(), "{p_name}") and @class="text-content"]')
                     tab.ele(f'xpath://span[contains(normalize-space(), "{p_name}") and @class="text-content"]').click(by_js=True)
 
                     # 等待页面加载
@@ -799,20 +844,22 @@ def main(conf):
                     study_knowledge_points(tab, browser)
                     tab.wait(1)
                     # 返回任务界面
+                    tab.wait.eles_loaded('xpath://img[@class="w-[40px] h-[40px] cursor-pointer"]')
                     tab.ele('xpath://img[@class="w-[40px] h-[40px] cursor-pointer"]').click(by_js=True)
                     tab.wait(1)
+                    tab.wait.eles_loaded('xpath://span[text()="我的任务"]')
                     tab.ele('xpath://span[text()="我的任务"]').click(by_js=True)
                     tab.wait(1)
-
+                    tab.wait.eles_loaded('x://span[text()="全部"]')
                     tab.ele('x://span[text()="全部"]').click(by_js=True)
                     tab.wait(1)
 
                     # 确认进入对应章节
-                    task_name = task["章节"][0:3]
+                    task_name = task[0:3]
                     if task_name not in tab.ele('x://div[@class="task-details-name"]').text:
                         tab.ele('x://div[contains(text(),"第四章") and @class="task-title"]').click(by_js=True)
                         tab.wait(1, 3)
-                        tab.ele(f'xpath://div[text()="{task["章节"]}" and @class="task-title"]').click(by_js=True)
+                        tab.ele(f'xpath://div[text()="{task}" and @class="task-title"]').click(by_js=True)
                         tab.wait(1)
 
             elif enter == "2":
@@ -828,35 +875,39 @@ def main(conf):
                         tab.wait(1)
                         tab.ele('x://span[text()="全部"]').click(by_js=True)
                         tab.wait(1)
+                        tab.wait.eles_loaded(f'xpath://div[text()="{task}" and @class="task-title"]')
+                        tab.ele(f'xpath://div[text()="{task}" and @class="task-title"]').click(by_js=True)
 
                     p_name = p_dict["名称"]
                     tab.wait(1)  # 延迟1s
                     tab.ele(f'xpath://span[contains(normalize-space(), "{p_name}") and @class="text-content"]').click(by_js=True)
 
                     # 等待页面加载
-                    tab.wait.doc_loaded()
-                    # 调用学习功能
-                    # study_knowledge_points(tab, browser)
-                    # tab.wait(1)
+                    tab.wait.doc_loaded(timeout=20,raise_err=False)
 
                     # 调用提升掌握度功能
                     mastery(tab,browser)
                     tab.wait(1)
 
                     # 返回任务界面
+                    tab.wait.eles_loaded('xpath://img[@class="w-[40px] h-[40px] cursor-pointer"]')
                     tab.ele('xpath://img[@class="w-[40px] h-[40px] cursor-pointer"]').click(by_js=True)
                     tab.wait(1)
+                    tab.wait.eles_loaded('xpath://span[text()="我的任务"]')
                     tab.ele('xpath://span[text()="我的任务"]').click(by_js=True)
                     tab.wait(1)
+                    tab.wait.eles_loaded('x://span[text()="全部"]')
                     tab.ele('x://span[text()="全部"]').click(by_js=True)
                     tab.wait(1)
 
                     # 确认进入对应章节
-                    task_name = task["章节"][0:3]
+                    task_name = task[0:3]
                     if task_name not in tab.ele('x://div[@class="task-details-name"]').text:
+                        tab.wait.eles_loaded('x://div[contains(text(),"第四章") and @class="task-title"]')
                         tab.ele('x://div[contains(text(),"第四章") and @class="task-title"]').click(by_js=True)
                         tab.wait(1, 3)
-                        tab.ele(f'xpath://div[text()="{task["章节"]}" and @class="task-title"]').click(by_js=True)
+                        tab.wait.eles_loaded(f'xpath://div[text()="{task}" and @class="task-title"]')
+                        tab.ele(f'xpath://div[text()="{task}" and @class="task-title"]').click(by_js=True)
                         tab.wait(1)
 
 
