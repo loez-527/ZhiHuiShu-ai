@@ -108,7 +108,7 @@
 
 本项目目前完全免费，但还是建议打赏一下，刷掌握度的时候，文件夹内会自动生成2个题库文件questions.json，question_bank.json(***理论应该只有一个的，但本着能运行就不动的原则，所以就这样吧***)建议一起发我邮箱૮(˶ᵔ ᵕ ᵔ˶)ა
 
-<img src="F:\python_install_exe\智慧树ai课-细胞生物学定制版\dist\智慧树ai课-细胞生物学定制版2.2\README.assets\mm_reward_qrcode_1743064061535.png" alt="mm_reward_qrcode_1743064061535" style="zoom:33%;" />
+<img src="README.assets\mm_reward_qrcode_1743064061535.png" alt="mm_reward_qrcode_1743064061535" style="zoom:10%;"/>
 
 
 
