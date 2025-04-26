@@ -156,11 +156,20 @@ def task_num_list(sorted_data):
         try:
             task_num = sys.stdin.readline().strip()
 
-            # 将阿拉伯数字转换为中文数字
-            task_num = task_num.replace('1', '一').replace('2', '二').replace('3', '三').replace('4', '四').replace('5', '五').replace(
-                '6', '六').replace('7', '七').replace('8', '八').replace('9', '九').replace('10', '十').replace('11', '十一').replace(
-                '12', '十二').replace('13', '十三').replace('14', '十四').replace('15', '十五')
+            # 输入验证
+            if not all(c.isdigit() or c == ',' for c in task_num):
+                raise ValueError("输入只能包含数字和逗号")
+
+            # 将阿拉伯数字转换为中文数字，注意替换顺序
+            task_num = task_num.replace('10', '十').replace('11', '十一').replace('12', '十二').replace('13', '十三').replace('14', '十四').replace('16', '十六').replace('17', '十七').replace('18', '十八').replace('19', '十九').replace('20', '二十');
+            task_num = task_num.replace('1', '一').replace('2', '二').replace('3', '三').replace('4', '四').replace('5', '五').replace('6', '六').replace('7', '七').replace('8', '八').replace('9', '九')
+
+            # 将输入的字符串按逗号分割成列表
             task_num = task_num.split(',')  # 将输入的字符串按逗号分割成列表
+
+            # 处理边界条件
+            task_num = [num for num in task_num if num]  # 过滤掉空字符串
+
             # print(f'{task_num}')
 
             # 将数字与章节对应,保存到新列表中
@@ -242,7 +251,7 @@ def parse_knowledge_points(tab):
             name = item.ele('xpath:.//span[@class="text-content"]').text.strip()
 
             # 定位状态容器（关键修改）
-            status_div = item.ele('xpath:.//div[not(@class) and @data-v-08f65cc7]')  # 定位没有class的div容器
+            status_div = item.ele('xpath:.//div[not(@class) and @*[starts-with(name(), "data-v-")]]')  # 定位没有class的div容器
 
             # 初始化默认值
             progress = '0%'
@@ -712,7 +721,7 @@ def main(conf):
     try:
         logging.info("程序启动")
 
-        if not os.path.exists('questions_bank.json'):
+        if not os.path.exists('question_bank.json'):
             with open('questions_bank.json', 'w') as f:
                 json.dump([], f)
 
