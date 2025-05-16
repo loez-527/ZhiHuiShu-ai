@@ -151,44 +151,51 @@ def load_config():
 
 # 将数字与章节对应,保存到新列表中
 def task_num_list(sorted_data):
-    # 获取用户输入内容
+    # 数字到中文的映射字典
+    num_to_chinese = {
+        '1': '一', '2': '二', '3': '三', '4': '四', '5': '五',
+        '6': '六', '7': '七', '8': '八', '9': '九', '10': '十',
+        '11': '十一', '12': '十二', '13': '十三', '14': '十四',
+        '15': '十五', '16': '十六', '17': '十七', '18': '十八',
+        '19': '十九', '20': '二十'
+    }
+
     while True:
         try:
+            # 获取并验证输入
             task_num = sys.stdin.readline().strip()
-
-            # 输入验证
             if not all(c.isdigit() or c == ',' for c in task_num):
                 raise ValueError("输入只能包含数字和逗号")
 
-            # 将阿拉伯数字转换为中文数字，注意替换顺序
-            task_num = task_num.replace('10', '十').replace('11', '十一').replace('12', '十二').replace('13', '十三').replace('14', '十四').replace('16', '十六').replace('17', '十七').replace('18', '十八').replace('19', '十九').replace('20', '二十');
-            task_num = task_num.replace('1', '一').replace('2', '二').replace('3', '三').replace('4', '四').replace('5', '五').replace('6', '六').replace('7', '七').replace('8', '八').replace('9', '九')
+            # 处理输入并转换为中文数字
+            task_nums = [num.strip() for num in task_num.split(',') if num.strip()]
+            chinese_nums = [num_to_chinese[num] for num in task_nums]
 
-            # 将输入的字符串按逗号分割成列表
-            task_num = task_num.split(',')  # 将输入的字符串按逗号分割成列表
-
-            # 处理边界条件
-            task_num = [num for num in task_num if num]  # 过滤掉空字符串
-
-            # print(f'{task_num}')
-
-            # 将数字与章节对应,保存到新列表中
+            # 查找匹配的章节
             new_list = []
-            for i in task_num:
-                for j in sorted_data:
-                    if i in j['章节'][0:2]:
-                        new_list.append(j['章节'])
+            for chinese_num in chinese_nums:
+                for chapter in sorted_data:
+                    # 检查章节名称是否以"第X章"开头，其中X包含我们的中文数字
+                    if chapter['章节'].startswith(f'第{chinese_num}章'):
+                        new_list.append(chapter['章节'])
+
+            if not new_list:
+                print("未找到匹配的章节，请重新输入")
+                continue
+
             print(f'是否确认选择章节：{new_list}')
             print('是否确认选择章节：y/n (输入法切换到英文输入)')
-            a = sys.stdin.readline().strip()
-            if a == "y":
-                return new_list
-            elif a == "n":
-                print("重新输入...")
-                continue  # 明确继续循环
-            else:
-                print("请输入 y 或 n")
-                continue
+            
+            while True:
+                choice = sys.stdin.readline().strip()
+                if choice == 'y':
+                    return new_list
+                elif choice == 'n':
+                    print("重新输入...")
+                    break
+                else:
+                    print("请输入 y 或 n")
+
         except Exception as e:
             print(f"输入无效: {e}. 请重新输入")
             continue
@@ -489,8 +496,13 @@ def mastery(tab, browser):
     question_bank = load_question_bank()
 
     # 进入答题流程
-    tab.wait.eles_loaded('xpath://div[text()=" 提升掌握度 "]')
-    tab.ele('xpath://div[text()=" 提升掌握度 "]').click()
+    raise_e = tab.wait.eles_loaded('xpath://div[text()=" 提升掌握度 "]',timeout=30,raise_err=False)
+    
+    if raise_e==False:        
+        return
+    else:
+        tab.ele('xpath://div[text()=" 提升掌握度 "]').click()
+    
     tab.wait.doc_loaded()
 
     while True:
@@ -529,7 +541,7 @@ def mastery(tab, browser):
                                 if normalize_text(idx) in normalize_text(el.text)
                             ), None)
                             if target:
-                                target.click.multi()
+                                target.click(by_js=True)
                                 tab.wait(1)
 
                     else:
@@ -781,7 +793,7 @@ def main(conf):
 
         for i in sorted_data:
             print(f'章节：{i["章节"]}\t进度：{i["学习进度"]}')
-        print("选择你需要学习的章节(输入阿拉伯数字,如‘1,2’，可以多个(按顺序),用<英文>逗号隔开):")
+        print("选择你需要学习的章节(输入阿拉伯数字,如'1,2'，可以多个(按顺序),用<英文>逗号隔开):")
 
         # 用户选择要学习的章节->章节列表
         new_list = task_num_list(sorted_data)

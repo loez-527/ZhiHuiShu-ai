@@ -30,7 +30,7 @@ class AboutWindow(tk.Toplevel):
         # 版本信息
         version_label = ttk.Label(
             main_frame,
-            text="版本：4.0.0",
+            text="版本：4.1.0",
             font=('Microsoft YaHei UI', 10)
         )
         version_label.pack(pady=(0, 20))

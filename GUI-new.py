@@ -133,7 +133,7 @@ class ConsoleInput:
 class Application(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("智慧树AI助手v4.0")
+        self.title("智慧树AI助手v4.1")
         self.geometry("900x700")  # 增加窗口大小
         self.configure(bg="#ffffff")  # 设置白色背景
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -202,7 +202,7 @@ class Application(tk.Tk):
         about_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="关于", menu=about_menu)
         about_menu.add_command(label="关于软件", command=self.show_about)
-        about_menu.add_command(label="官方网站", command=lambda: webbrowser.open("https://zhs.xyunl.top/"))
+        about_menu.add_command(label="官方网站", command=lambda: webbrowser.open("https://zhs.loez.store/"))
 
     def return_home(self):
         """返回主页"""
