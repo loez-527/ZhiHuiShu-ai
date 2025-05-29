@@ -133,7 +133,7 @@ class ConsoleInput:
 class Application(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("智慧树AI助手v4.1")
+        self.title("智慧树AI助手v4.2")
         self.geometry("900x700")  # 增加窗口大小
         self.configure(bg="#ffffff")  # 设置白色背景
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -149,6 +149,7 @@ class Application(tk.Tk):
         self.show_password_var = tk.BooleanVar(value=False)
         self.is_running = False
         self.always_on_top = tk.BooleanVar(value=False)  # 添加置顶状态变量
+        self.matching_mode_var = tk.StringVar(value="精确匹配") # 新增：用于存储题目匹配模式
         
         # 创建菜单栏
         self.create_menu()
@@ -303,6 +304,29 @@ A: 请发送日志文件至指定邮箱"""
         self.course_url = ttk.Entry(parent)
         self.course_url.grid(row=3, column=1, padx=3, pady=1, sticky=tk.EW)  # 减小间距
 
+        # 新增：题目匹配方式选项
+        ttk.Label(parent, text="题目匹配方式:").grid(row=4, column=0, padx=3, pady=1, sticky=tk.W)
+        match_mode_frame = ttk.Frame(parent)
+        match_mode_frame.grid(row=4, column=1, columnspan=2, padx=3, pady=1, sticky=tk.EW)
+        
+        # 精确匹配选项和提示
+        exact_frame = ttk.Frame(match_mode_frame)
+        exact_frame.pack(side=tk.TOP, fill=tk.X, pady=(0,1)) 
+        self.exact_match_radio = ttk.Radiobutton(
+            exact_frame, text="精确匹配", variable=self.matching_mode_var, value="精确匹配"
+        )
+        self.exact_match_radio.pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Label(exact_frame, text="(判断选项与题库中的答案是否完全相同，默认使用)", foreground="#555555", font=('Microsoft YaHei UI', 10)).pack(side=tk.LEFT, anchor=tk.W)
+        
+        # 模糊匹配选项和提示
+        fuzzy_frame = ttk.Frame(match_mode_frame)
+        fuzzy_frame.pack(side=tk.TOP, fill=tk.X)
+        self.fuzzy_match_radio = ttk.Radiobutton(
+            fuzzy_frame, text="模糊匹配", variable=self.matching_mode_var, value="模糊匹配"
+        )
+        self.fuzzy_match_radio.pack(side=tk.LEFT, padx=(0,5))
+        ttk.Label(fuzzy_frame, text="(判断题库中答案与选项是否相似)", foreground="#555555", font=('Microsoft YaHei UI', 10)).pack(side=tk.LEFT, anchor=tk.W)
+
     def _create_button_widgets(self, parent: ttk.Frame) -> None:
         btn_frame = ttk.Frame(parent)
         btn_frame.pack(fill=tk.X, pady=3)
@@ -381,6 +405,10 @@ A: 请发送日志文件至指定邮箱"""
                 self.password.insert(0, config.get("Credentials", "password", fallback=""))
                 self.browser_path.insert(0, config.get("Browser", "chrome_path", fallback=""))
                 self.course_url.insert(0, config.get("Course", "url", fallback=""))
+                # 新增：加载题目匹配模式，如果节不存在或键不存在，则使用 fallback
+                if not config.has_section("Settings"):
+                    config.add_section("Settings")
+                self.matching_mode_var.set(config.get("Settings", "matching_mode", fallback="精确匹配"))
         except Exception as e:
             logging.error(f"加载配置时发生错误: {str(e)}")
             messagebox.showerror("错误", f"加载配置时发生错误: {str(e)}")
@@ -398,6 +426,11 @@ A: 请发送日志文件至指定邮箱"""
             config["Course"] = {
                 "url": self.course_url.get()
             }
+            
+            # 新增：保存题目匹配模式
+            if not config.has_section("Settings"):
+                config.add_section("Settings")
+            config["Settings"]["matching_mode"] = self.matching_mode_var.get()
             
             with open("config.ini", "w", encoding="utf-8") as f:
                 config.write(f)
@@ -418,6 +451,8 @@ A: 请发送日志文件至指定邮箱"""
 
         self.is_running = True
         self.start_btn.config(state=tk.DISABLED)
+        self.exact_match_radio.config(state=tk.DISABLED) # 禁用精确匹配单选按钮
+        self.fuzzy_match_radio.config(state=tk.DISABLED) # 禁用模糊匹配单选按钮
         
         def run_main():
             try:
@@ -425,7 +460,8 @@ A: 请发送日志文件至指定邮箱"""
                     'username': self.username.get(),
                     'password': self.password.get(),
                     'chrome_path': self.browser_path.get(),
-                    'course_url': self.course_url.get()
+                    'course_url': self.course_url.get(),
+                    'matching_mode': self.matching_mode_var.get() # 新增：传递匹配模式
                 })
             except Exception as e:
                 logging.error(f"运行主程序时发生错误: {str(e)}")
@@ -433,6 +469,8 @@ A: 请发送日志文件至指定邮箱"""
             finally:
                 self.is_running = False
                 self.start_btn.config(state=tk.NORMAL)
+                self.exact_match_radio.config(state=tk.NORMAL) # 启用精确匹配单选按钮
+                self.fuzzy_match_radio.config(state=tk.NORMAL) # 启用模糊匹配单选按钮
 
         thread = threading.Thread(target=run_main, daemon=True)
         thread.start()

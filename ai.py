@@ -146,7 +146,8 @@ def load_config():
         'username': config.get('Credentials', 'username'),
         'password': config.get('Credentials', 'password'),
         'chrome_path': config.get('Browser', 'chrome_path'),
-        'course_url': config.get('Course', 'url')
+        'course_url': config.get('Course', 'url'),
+        'matching_mode': config.get('Mastery', 'matching_mode', '精确匹配')
     }
 
 # 将数字与章节对应,保存到新列表中
@@ -491,7 +492,7 @@ def normalize_text(text):
 # ======================
 # 完善后的掌握度功能
 # ======================
-def mastery(tab, browser):
+def mastery(tab, browser, matching_mode):
     # 初始化题库
     question_bank = load_question_bank()
 
@@ -536,10 +537,17 @@ def mastery(tab, browser):
                             # 通用定位所有可能元素
                             candidates = tab.eles('x://label[@class="el-checkbox"]//p | //div[@class="preStyle fl stem"]//p | //div[@class="preStyle fl stem"]')
                             # 过滤匹配项
-                            target = next((
-                                el for el in candidates
-                                if normalize_text(idx) in normalize_text(el.text)
-                            ), None)
+                            if matching_mode == "精确匹配":
+                                target = next((
+                                    el for el in candidates
+                                    if normalize_text(idx) == normalize_text(el.text)
+                                ), None)
+                            else:  # 模糊匹配
+                                target = next((
+                                    el for el in candidates
+                                    if normalize_text(idx) in normalize_text(el.text)
+                                ), None)
+                            
                             if target:
                                 target.click(by_js=True)
                                 tab.wait(1)
@@ -732,6 +740,7 @@ def get_valid_input(prompt, valid_choices,Tab,max_attempts=3):
 def main(conf):
     try:
         logging.info("程序启动")
+        matching_mode = conf.get('matching_mode', '精确匹配') # 获取匹配模式，默认为精确
 
         if not os.path.exists('question_bank.json'):
             with open('questions_bank.json', 'w') as f:
@@ -907,7 +916,7 @@ def main(conf):
                     tab.wait.doc_loaded(timeout=20,raise_err=False)
 
                     # 调用提升掌握度功能
-                    mastery(tab,browser)
+                    mastery(tab,browser, matching_mode)
                     tab.wait(1)
 
                     # 返回任务界面
